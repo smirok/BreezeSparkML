@@ -1,31 +1,31 @@
 package ru.hse
 
-import breeze.linalg.{*, DenseMatrix, DenseVector, sum}
-import breeze.linalg._
+import breeze.linalg.{*, DenseMatrix, DenseVector}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.feature.VectorAssembler
+import ru.hse.estimator.LinRegressionEstimator
+
 
 object Main {
-  private val N = 10
+  private val N = 100
   private val d = 3
-  private val lambda = 1e-5
+  val spark: SparkSession = SparkSession.builder.master("local[1]").appName("BreezeSparkML").getOrCreate()
 
   def main(args: Array[String]): Unit = {
-    val sparkSession = SparkSession.builder.master("local[1]").appName("BreezeSparkML").getOrCreate()
-    import sparkSession.implicits._
+    import spark.implicits._
 
-    val X = DenseMatrix.rand[Double](N, d)
-    val y = X * DenseVector[Double](1.5, 0.3, -0.7)
+    val X = DenseMatrix.rand(N, d)
+    val weights = DenseVector(1.5, 0.3, -0.7)
+    val y = X * weights
+    val data = DenseMatrix.horzcat(X, y.asDenseMatrix.t)
 
-    var w = DenseVector.rand[Double](d)
-    var b = DenseVector.rand[Double](1)
+    val df = data(*, ::).iterator
+      .map(x => (x(0), x(1), x(2), x(3)))
+      .toSeq.toDF("x1", "x2", "x3", "y")
 
-    for (_ <- 0 to 10) {
-      val eps = X * w + DenseVector.fill(N) { b(0) } - y
-      w = w - lambda / N * (eps.t * X).t
-      b = b - lambda / N * sum(eps)
-    }
+    val model = new LinRegressionEstimator("1").fit(df)
+
+    model.transform(df)
+    println(model.getWeights, model.getBias)
   }
 }
 
