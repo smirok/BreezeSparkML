@@ -1,7 +1,7 @@
 package ru.hse.estimator
 
 import math.sqrt
-import breeze.linalg.{DenseMatrix, DenseVector, squaredDistance, sum}
+import breeze.linalg.{squaredDistance, sum, DenseMatrix, DenseVector}
 import org.apache.spark.ml.linalg.{Vector => SparkVector}
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.ml.Estimator
@@ -16,10 +16,10 @@ import ru.hse.model.LinRegressionModel
 import ru.hse.params.LinRegressionParams
 import scala.util.control.Breaks.{break, breakable}
 
-
-class LinRegressionEstimator(override val uid: String) extends Estimator[LinRegressionModel]
-  with DefaultParamsWritable
-  with LinRegressionParams {
+class LinRegressionEstimator(override val uid: String)
+    extends Estimator[LinRegressionModel]
+    with DefaultParamsWritable
+    with LinRegressionParams {
 
   def setMaxIter(value: Int): this.type = set(maxIter, value)
 
@@ -31,7 +31,8 @@ class LinRegressionEstimator(override val uid: String) extends Estimator[LinRegr
 
   def setBatchSize(value: Int): this.type = set(batchSize, value)
 
-  override def copy(extra: ParamMap): Estimator[LinRegressionModel] = defaultCopy(extra)
+  override def copy(extra: ParamMap): Estimator[LinRegressionModel] =
+    defaultCopy(extra)
 
   override def transformSchema(schema: StructType): StructType = schema
 
@@ -42,36 +43,45 @@ class LinRegressionEstimator(override val uid: String) extends Estimator[LinRegr
     setWeights(DenseVector.zeros(getInputCols.length))
     setBias(0)
 
-    val assembler = new VectorAssembler().setInputCols(getInputCols ++ Array(getLabelCol)).setOutputCol("data")
-    val dataVectors: Dataset[SparkVector] = assembler.transform(dataset).select("data").as[SparkVector]
+    val assembler = new VectorAssembler()
+      .setInputCols(getInputCols ++ Array(getLabelCol))
+      .setOutputCol("data")
+    val dataVectors: Dataset[SparkVector] =
+      assembler.transform(dataset).select("data").as[SparkVector]
 
     breakable {
       for (_ <- 0 to getMaxIter) {
         val preIterationWeights = getWeights
 
-        val summary = dataVectors.rdd.mapPartitions((data: Iterator[SparkVector]) => {
-          val weightSummarizer = new MultivariateOnlineSummarizer()
-          val biasSummarizer = new MultivariateOnlineSummarizer()
+        val summary = dataVectors.rdd
+          .mapPartitions { (data: Iterator[SparkVector]) =>
+            val weightSummarizer = new MultivariateOnlineSummarizer()
+            val biasSummarizer = new MultivariateOnlineSummarizer()
 
-          data.grouped(getBatchSize).foreach(block => {
-            val xTrain = DenseMatrix(block.toArray.map(_.toArray.dropRight(1)): _*)
-            val yTrain = DenseVector(block.toArray.map(_.toArray.last))
+            data.grouped(getBatchSize).foreach { block =>
+              val xTrain =
+                DenseMatrix(block.toArray.map(_.toArray.dropRight(1)): _*)
+              val yTrain = DenseVector(block.toArray.map(_.toArray.last))
 
-            val delta = xTrain * getWeights + getBias - yTrain
-            val weightsDelta = (delta.t * xTrain).t / block.size.asInstanceOf[Double]
-            val biasDelta = sum(delta) / block.size.asInstanceOf[Double]
+              val delta = xTrain * getWeights + getBias - yTrain
+              val weightsDelta =
+                (delta.t * xTrain).t / block.size.asInstanceOf[Double]
+              val biasDelta = sum(delta) / block.size.asInstanceOf[Double]
 
-            weightSummarizer.add(Vectors.dense(weightsDelta.toArray))
-            biasSummarizer.add(Vectors.dense(Array(biasDelta)))
-          })
+              weightSummarizer.add(Vectors.dense(weightsDelta.toArray))
+              biasSummarizer.add(Vectors.dense(Array(biasDelta)))
+            }
 
-          Iterator((weightSummarizer, biasSummarizer))
-        }).reduce((x, y) => (x._1.merge(x._2), y._1.merge(y._2)))
+            Iterator((weightSummarizer, biasSummarizer))
+          }
+          .reduce((x, y) => (x._1.merge(x._2), y._1.merge(y._2)))
 
         val weightsGrad = summary._1
         val biasGrad = summary._2
 
-        setWeights(getWeights - getLearningRate * DenseVector(weightsGrad.mean.toArray))
+        setWeights(
+          getWeights - getLearningRate * DenseVector(weightsGrad.mean.toArray)
+        )
         setBias(getBias - getLearningRate * biasGrad.mean.toArray(0))
 
         if (sqrt(squaredDistance(getWeights, preIterationWeights)) < getTol)
@@ -83,4 +93,5 @@ class LinRegressionEstimator(override val uid: String) extends Estimator[LinRegr
   }
 }
 
-object LinRegressionEstimator extends DefaultParamsReadable[LinRegressionEstimator]
+object LinRegressionEstimator
+    extends DefaultParamsReadable[LinRegressionEstimator]

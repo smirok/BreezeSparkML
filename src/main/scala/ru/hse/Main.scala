@@ -7,10 +7,15 @@ import ru.hse.estimator.LinRegressionEstimator
 object Main {
   private val N = 100000
   private val d = 3
-  val spark: SparkSession = SparkSession.builder.master("local[1]").appName("BreezeSparkML").getOrCreate()
+
+  val spark: SparkSession = SparkSession.builder
+    .master("local[1]")
+    .appName("BreezeSparkML")
+    .getOrCreate()
 
   def main(args: Array[String]): Unit = {
     import spark.implicits._
+    spark.sparkContext.setLogLevel("WARN")
 
     val X = DenseMatrix.rand(N, d)
     val weights = DenseVector(1.5, 0.3, -0.7)
@@ -19,7 +24,8 @@ object Main {
 
     val df = data(*, ::).iterator
       .map(x => (x(0), x(1), x(2), x(3)))
-      .toSeq.toDF("x1", "x2", "x3", "y")
+      .toSeq
+      .toDF("x1", "x2", "x3", "y")
 
     val model = new LinRegressionEstimator("1")
       .setLabelCol("y")
@@ -33,5 +39,3 @@ object Main {
     println(model.getWeights, model.getBias)
   }
 }
-
-

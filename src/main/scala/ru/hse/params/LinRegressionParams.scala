@@ -2,14 +2,20 @@ package ru.hse.params
 
 import breeze.linalg.DenseVector
 import org.apache.spark.ml.param.shared.{HasLabelCol, HasMaxIter, HasTol}
-import org.apache.spark.ml.param.{DoubleArrayParam, DoubleParam, Params, StringArrayParam}
+import org.apache.spark.ml.param.{
+  DoubleArrayParam,
+  DoubleParam,
+  Params,
+  StringArrayParam
+}
 
-trait LinRegressionParams extends Params
-  with HasMaxIter
-  with HasTol
-  with HasLabelCol
-  with HasLearningRate
-  with HasBatchSize {
+trait LinRegressionParams
+    extends Params
+    with HasMaxIter
+    with HasTol
+    with HasLabelCol
+    with HasLearningRate
+    with HasBatchSize {
 
   final var inputCols: StringArrayParam =
     new StringArrayParam(this, "inputCols", "")
@@ -21,7 +27,8 @@ trait LinRegressionParams extends Params
   final var weights: DoubleArrayParam =
     new DoubleArrayParam(this, "weights", "")
 
-  def setWeights(value: DenseVector[Double]): this.type = set(weights, value.toArray)
+  def setWeights(value: DenseVector[Double]): this.type =
+    set(weights, value.toArray)
 
   def getWeights: DenseVector[Double] = DenseVector($(weights))
 

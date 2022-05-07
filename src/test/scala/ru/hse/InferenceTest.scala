@@ -9,6 +9,13 @@ import org.apache.spark.mllib.evaluation.RegressionMetrics
 class InferenceTest extends AnyFunSuite {
 
   test("Inference") {
+    val spark: SparkSession = SparkSession.builder
+      .master("local[1]")
+      .appName("BreezeSparkML")
+      .getOrCreate()
+    import spark.implicits._
+    spark.sparkContext.setLogLevel("WARN")
+
     val N = 100
     val d = 5
 
@@ -17,12 +24,10 @@ class InferenceTest extends AnyFunSuite {
     val y = X * weights
     val data = DenseMatrix.horzcat(X, y.asDenseMatrix.t)
 
-    val spark: SparkSession = SparkSession.builder.master("local[1]").appName("BreezeSparkML").getOrCreate()
-    import spark.implicits._
-
     val df = data(*, ::).iterator
       .map(x => (x(0), x(1), x(2), x(3), x(4), x(5)))
-      .toSeq.toDF("x1", "x2", "x3", "x4", "x5", "y")
+      .toSeq
+      .toDF("x1", "x2", "x3", "x4", "x5", "y")
 
     val model = new LinRegressionEstimator("1")
       .setLabelCol("y")
@@ -36,10 +41,14 @@ class InferenceTest extends AnyFunSuite {
 
     val testDF = testX(*, ::).iterator
       .map(x => (x(0), x(1), x(2), x(3), x(4)))
-      .toSeq.toDF("x1", "x2", "x3", "x4", "x5")
+      .toSeq
+      .toDF("x1", "x2", "x3", "x4", "x5")
 
     val predictionsY = model.transform(testDF)
-    val predictionAndObservations = predictionsY.join(testY.toArray.toSeq.toDF("observations")).rdd.map(x => (x(0), x(1)))
+    val predictionAndObservations = predictionsY
+      .join(testY.toArray.toSeq.toDF("observations"))
+      .rdd
+      .map(x => (x(0), x(1)))
 
     val metrics = new RegressionMetrics(predictionAndObservations)
     assert(metrics.meanSquaredError < 5)
