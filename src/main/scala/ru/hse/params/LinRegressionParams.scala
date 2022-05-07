@@ -1,9 +1,10 @@
 package ru.hse.params
 
 import breeze.linalg.DenseVector
+import org.apache.spark.ml.param.shared.{HasLabelCol, HasMaxIter}
 import org.apache.spark.ml.param.{DoubleArrayParam, DoubleParam, Params, StringArrayParam}
 
-trait LinRegressionParams extends Params {
+trait LinRegressionParams extends Params with HasMaxIter with HasLabelCol with HasLambda {
   final var inputCols: StringArrayParam =
     new StringArrayParam(this, "inputCols", "")
 
