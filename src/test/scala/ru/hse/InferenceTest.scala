@@ -9,7 +9,7 @@ import org.apache.spark.mllib.evaluation.RegressionMetrics
 class InferenceTest extends AnyFunSuite {
 
   test("Inference") {
-    val N = 10
+    val N = 100
     val d = 5
 
     val X = DenseMatrix.rand(N, d)
@@ -24,7 +24,12 @@ class InferenceTest extends AnyFunSuite {
       .map(x => (x(0), x(1), x(2), x(3), x(4), x(5)))
       .toSeq.toDF("x1", "x2", "x3", "x4", "x5", "y")
 
-    val model = new LinRegressionEstimator("1").setLabelCol("y").setMaxIter(100000).fit(df)
+    val model = new LinRegressionEstimator("1")
+      .setLabelCol("y")
+      .setTol(1e-6)
+      .setLearningRate(1e-1)
+      .setMaxIter(1000)
+      .fit(df)
 
     val testX = DenseMatrix.rand(N, d)
     val testY = testX * weights

@@ -2,15 +2,13 @@ package ru.hse
 
 import breeze.linalg.{*, DenseMatrix, DenseVector, max}
 import org.apache.spark.sql.SparkSession
-import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.funsuite.AnyFunSuite
 import ru.hse.estimator.LinRegressionEstimator
-import org.scalatest.Assertions._
 
 class TrainTest extends AnyFunSuite {
 
   test("Train") {
-    val N = 1000
+    val N = 10
     val d = 5
 
     val X = DenseMatrix.rand(N, d)
@@ -25,7 +23,12 @@ class TrainTest extends AnyFunSuite {
       .map(x => (x(0), x(1), x(2), x(3), x(4), x(5)))
       .toSeq.toDF("x1", "x2", "x3", "x4", "x5", "y")
 
-    val model = new LinRegressionEstimator("1").setLabelCol("y").setMaxIter(10000).fit(df)
+    val model = new LinRegressionEstimator("1")
+      .setLabelCol("y")
+      .setLearningRate(1e-1)
+      .setTol(1e-6)
+      .setMaxIter(10000)
+      .fit(df)
 
     assert(max(model.getWeights - weights) < 0.01)
   }
